@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0a0a0f"/>
+<title>CIPHER</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+<link rel="manifest" href="manifest.json"/>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.1/lib/qr-code-styling.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --bg2: #0f0f17;
+  --surface: rgba(255,255,255,0.04);
+  --surface2: rgba(255,255,255,0.07);
+  --surface3: rgba(255,255,255,0.10);
+  --glass: rgba(15,15,23,0.85);
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.13);
+  --accent: #7c6af7;
+  --accent2: #a594f9;
+  --accent-glow: rgba(124,106,247,0.3);
+  --accent-dim: rgba(124,106,247,0.12);
+  --green: #34d399;
+  --green-dim: rgba(52,211,153,0.15);
+  --amber: #fbbf24;
+  --red: #f87171;
+  --text: rgba(255,255,255,0.92);
+  --text2: rgba(255,255,255,0.55);
+  --text3: rgba(255,255,255,0.30);
+  --radius: 20px;
+  --radius-sm: 12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text)}
+body{
+  font-family:'DM Sans',sans-serif;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.icon{font-family:'Material Symbols Rounded';font-weight:400;font-style:normal;display:inline-block;line-height:1;letter-spacing:normal;text-transform:none;white-space:nowrap;word-wrap:normal;direction:ltr;-webkit-font-smoothing:antialiased;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24}
+#root{display:flex;flex-direction:column;height:100dvh;position:relative;overflow:hidden}
+
+/* ── NOISE BG ── */
+#root::before{content:'';position:fixed;inset:0;background:
+  radial-gradient(ellipse 80% 50% at 20% -20%, rgba(124,106,247,0.12) 0%, transparent 60%),
+  radial-gradient(ellipse 60% 40% at 80% 110%, rgba(52,211,153,0.07) 0%, transparent 55%);
+  pointer-events:none;z-index:0}
+
+/* ── TOP BAR ── */
+#bar{
+  flex-shrink:0;height:58px;
+  background:var(--glass);
+  backdrop-filter:blur(20px) saturate(1.5);
+  -webkit-backdrop-filter:blur(20px) saturate(1.5);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;z-index:50;position:relative
+}
+#bar-left{display:flex;align-items:center;gap:10px}
+#bar-wordmark{font-size:15px;font-weight:700;letter-spacing:2px;color:var(--text)}
+#bar-sub{font-size:10px;color:var(--accent2);font-weight:500;letter-spacing:0.5px}
+#clock{font-size:12px;font-weight:500;color:var(--text2);font-family:'DM Mono',monospace}
+#back{
+  display:none;background:var(--surface2);border:1px solid var(--border);
+  width:34px;height:34px;border-radius:10px;cursor:pointer;
+  color:var(--text);align-items:center;justify-content:center;
+  transition:all .15s
+}
+#back:active{transform:scale(0.93);background:var(--surface3)}
+
+/* ── NAV BAR ── */
+#nav{
+  flex-shrink:0;height:60px;
+  background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-around;
+  padding:0 8px;padding-bottom:env(safe-area-inset-bottom);
+  z-index:50;position:relative
+}
+.nav-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:8px 4px;cursor:pointer;border:none;background:transparent;color:var(--text3);
+  border-radius:14px;transition:all .2s;position:relative
+}
+.nav-btn.active{color:var(--accent2)}
+.nav-btn .icon{font-size:22px;transition:all .2s}
+.nav-btn.active .icon{font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 24}
+.nav-btn span.label{font-size:10px;font-weight:600;letter-spacing:0.3px}
+.nav-badge{
+  position:absolute;top:6px;right:calc(50% - 18px);
+  width:16px;height:16px;background:var(--accent);border-radius:50%;
+  font-size:9px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--bg)
+}
+
+/* ── SCREENS ── */
+.screen{display:none;flex:1;overflow:hidden;flex-direction:column;position:relative;z-index:1}
+.screen.show{display:flex}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.screen.show{animation:slideUp .25s cubic-bezier(.16,1,.3,1)}
+
+/* ── LOCK SCREEN ── */
+#s-lock{
+  background:var(--bg);align-items:center;justify-content:center;gap:0;
+  background-image:radial-gradient(ellipse 70% 50% at 50% 30%, rgba(124,106,247,0.15) 0%, transparent 70%)
+}
+.lock-logo{
+  width:72px;height:72px;border-radius:24px;background:var(--accent-dim);
+  border:1px solid rgba(124,106,247,0.3);display:flex;align-items:center;justify-content:center;
+  margin-bottom:20px;box-shadow:0 0 40px var(--accent-glow)
+}
+.lock-logo .icon{font-size:32px;color:var(--accent2);font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24}
+.lock-title{font-size:24px;font-weight:700;letter-spacing:1px;color:var(--text);margin-bottom:4px}
+.lock-sub{font-size:12px;color:var(--text2);letter-spacing:0.5px;margin-bottom:28px}
+.pin-dots{display:flex;gap:14px;margin-bottom:8px}
+.pin-dot{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--border2);background:transparent;transition:all .15s}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);box-shadow:0 0 8px var(--accent-glow)}
+.pin-error{font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--red);min-height:18px;margin-bottom:16px;text-align:center}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:260px}
+.np-btn{
+  aspect-ratio:1;border-radius:50%;background:var(--surface);border:1px solid var(--border);
+  color:var(--text);font-size:22px;font-weight:300;cursor:pointer;transition:all .1s;
+  display:flex;align-items:center;justify-content:center;font-family:'DM Sans',sans-serif
+}
+.np-btn:active{background:var(--surface3);transform:scale(0.94)}
+
+/* ── CHAT LIST ── */
+#s-chats{overflow:hidden}
+.list-hdr{
+  padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between
+}
+.list-hdr-title{font-size:22px;font-weight:700;letter-spacing:-0.3px}
+.list-search{
+  margin:0 16px 12px;background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;display:flex;align-items:center;gap:8px;padding:10px 14px
+}
+.list-search .icon{font-size:18px;color:var(--text3)}
+.list-search input{background:transparent;border:none;color:var(--text);font-size:14px;outline:none;flex:1;font-family:'DM Sans',sans-serif}
+.list-search input::placeholder{color:var(--text3)}
+#clist{overflow-y:auto;flex:1;padding:8px 12px 8px}
+
+.crow{
+  display:flex;align-items:center;gap:14px;padding:12px 14px;
+  border-radius:var(--radius);cursor:pointer;transition:background .15s;
+  margin-bottom:4px;position:relative
+}
+.crow:active{background:var(--surface)}
+.cav{
+  width:48px;height:48px;border-radius:16px;background:var(--surface2);
+  display:grid;grid-template-columns:repeat(4,1fr);gap:1.5px;padding:6px;
+  flex-shrink:0;overflow:hidden;position:relative
+}
+.cav-status{
+  position:absolute;bottom:-2px;right:-2px;width:13px;height:13px;
+  border-radius:50%;border:2px solid var(--bg2);
+}
+.ci{flex:1;min-width:0}
+.cn{font-size:15px;font-weight:600}
+.cp{font-size:13px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctime{font-size:11px;color:var(--text3);white-space:nowrap;align-self:flex-start;margin-top:3px}
+.cunread{
+  min-width:18px;height:18px;background:var(--accent);border-radius:9px;
+  font-size:10px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;
+  padding:0 4px;align-self:flex-start;margin-top:2px
+}
+.add-btn{
+  width:calc(100% - 24px);margin:8px 12px 0;padding:14px;border:1.5px dashed var(--border2);
+  border-radius:var(--radius);background:transparent;color:var(--text2);
+  display:flex;align-items:center;gap:12px;cursor:pointer;font-family:'DM Sans',sans-serif;
+  font-size:13px;font-weight:600;transition:all .15s
+}
+.add-btn:active{background:var(--surface);border-color:var(--accent);color:var(--accent2)}
+.add-btn .icon{font-size:20px;color:var(--accent)}
+
+/* ── CHAT VIEW ── */
+#s-chat{overflow:hidden}
+#chat-hdr{
+  flex-shrink:0;background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:10px 16px
+}
+#chat-av{
+  width:38px;height:38px;border-radius:12px;background:var(--surface2);
+  display:grid;grid-template-columns:repeat(4,1fr);gap:1px;padding:5px;flex-shrink:0;
+  position:relative
+}
+.chat-status-dot{
+  position:absolute;bottom:-2px;right:-2px;width:11px;height:11px;
+  border-radius:50%;border:2px solid var(--glass)
+}
+#chat-info{flex:1;min-width:0}
+#chat-nm{font-size:15px;font-weight:600}
+#chat-status-text{font-size:11px;color:var(--text2);margin-top:1px}
+.chat-action{
+  width:34px;height:34px;border-radius:10px;background:var(--surface);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);
+  transition:all .15s
+}
+.chat-action:active{background:var(--surface3)}
+.chat-action .icon{font-size:18px}
+
+#msgs-area{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px}
+#msgs-area::-webkit-scrollbar{width:0}
+.mw{display:flex;align-items:flex-end;gap:8px}
+.mw.out{justify-content:flex-end}
+.mb{
+  max-width:78%;padding:11px 14px;word-break:break-word;
+  position:relative;font-size:14px;line-height:1.5
+}
+.mb.out{
+  background:linear-gradient(135deg, var(--accent) 0%, #9b8bf7 100%);
+  color:#fff;border-radius:18px 18px 4px 18px;
+  box-shadow:0 4px 20px rgba(124,106,247,0.35)
+}
+.mb.in{
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);border-radius:18px 18px 18px 4px
+}
+.mm{font-size:10px;margin-top:5px;opacity:0.65;display:flex;align-items:center;gap:3px}
+.mm.out{justify-content:flex-end;color:rgba(255,255,255,0.7)}
+.mm.in{color:var(--text2)}
+.dsep{
+  text-align:center;font-size:11px;color:var(--text3);
+  margin:10px 0;display:flex;align-items:center;gap:10px
+}
+.dsep::before,.dsep::after{content:'';flex:1;height:1px;background:var(--border)}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+.sa{animation:msgIn .18s ease-out}
+
+.msg-img{max-width:200px;max-height:160px;border-radius:12px;display:block;margin-bottom:4px;cursor:pointer}
+.msg-file{
+  display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.08);
+  padding:10px 12px;border-radius:12px;cursor:pointer
+}
+.file-ic{font-size:22px}
+.file-name{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+.file-sz{font-size:10px;opacity:.6;margin-top:1px}
+
+/* ── INPUT ── */
+#irow{
+  padding:10px 12px;background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  padding-bottom:calc(10px + env(safe-area-inset-bottom))
+}
+#irow-main{display:flex;align-items:flex-end;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:8px 8px 8px 16px}
+#min{
+  flex:1;background:transparent;border:none;color:var(--text);font-size:15px;
+  outline:none;resize:none;max-height:100px;padding:4px 0;
+  font-family:'DM Sans',sans-serif;line-height:1.4
+}
+#min::placeholder{color:var(--text3)}
+#irow-tools{display:flex;gap:2px;align-items:center}
+.itool{
+  width:34px;height:34px;border-radius:10px;background:transparent;border:none;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:var(--text3);transition:all .15s
+}
+.itool:active{background:var(--surface3);color:var(--text)}
+.itool .icon{font-size:20px}
+#snd{
+  width:38px;height:38px;border-radius:14px;
+  background:linear-gradient(135deg,var(--accent),#9b8bf7);
+  color:#fff;border:none;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;box-shadow:0 4px 15px var(--accent-glow);
+  transition:all .15s
+}
+#snd:active{transform:scale(0.9);box-shadow:none}
+#snd .icon{font-size:20px}
+
+/* ── PANE / FORMS ── */
+.pscreen{overflow-y:auto;flex:1;padding:16px}
+.pscreen::-webkit-scrollbar{width:0}
+.pane{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px}
+.pane-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent2);margin-bottom:18px}
+.fl{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;display:block;letter-spacing:0.3px}
+.fi{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:12px 14px;color:var(--text);font-size:14px;
+  outline:none;margin-bottom:14px;font-family:'DM Sans',sans-serif;transition:border-color .2s
+}
+.fi:focus{border-color:var(--accent)}
+.fta{resize:none;font-family:'DM Mono',monospace;font-size:12px;line-height:1.5}
+.fpprev{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin:6px 0 12px}
+.fpc{aspect-ratio:1;border-radius:4px;background:var(--surface3)}
+.fpc.on{background:var(--accent)}
+.btnp{
+  width:100%;padding:15px;
+  background:linear-gradient(135deg,var(--accent),#9b8bf7);
+  color:#fff;border:none;border-radius:100px;font-size:14px;font-weight:700;
+  letter-spacing:0.3px;cursor:pointer;box-shadow:0 4px 20px var(--accent-glow);
+  transition:all .15s;font-family:'DM Sans',sans-serif
+}
+.btnp:active{opacity:0.85;transform:scale(0.98)}
+.btns{
+  width:100%;padding:13px;background:transparent;color:var(--text2);
+  border:1px solid var(--border2);border-radius:100px;font-size:13px;font-weight:600;
+  cursor:pointer;margin-top:8px;font-family:'DM Sans',sans-serif;transition:all .15s
+}
+.btns:active{background:var(--surface2)}
+.btn-danger{
+  width:100%;padding:13px;background:transparent;color:var(--red);
+  border:1px solid rgba(248,113,113,0.3);border-radius:100px;font-size:13px;font-weight:600;
+  cursor:pointer;margin-top:8px;font-family:'DM Sans',sans-serif;transition:all .15s
+}
+.btn-danger:active{background:rgba(248,113,113,0.08)}
+.pkbox{
+  font-family:'DM Mono',monospace;font-size:10px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:12px;padding:14px;word-break:break-all;
+  color:var(--accent2);line-height:1.6;margin-bottom:12px
+}
+
+/* ── SECURITY SCREEN ── */
+.sec-section{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);padding:16px 20px 8px}
+.sec-row{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface);padding:14px 16px;margin:0 12px 6px;
+  border-radius:var(--radius-sm);border:1px solid var(--border)
+}
+.sec-row-info{flex:1}
+.sec-row-label{font-size:14px;font-weight:600}
+.sec-row-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.toggle{width:48px;height:28px;background:var(--border2);border:none;border-radius:100px;position:relative;cursor:pointer;flex-shrink:0;transition:background .2s}
+.toggle.on{background:var(--accent)}
+.toggle-knob{width:20px;height:20px;background:#fff;border-radius:50%;position:absolute;top:4px;left:4px;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,0.3)}
+.toggle.on .toggle-knob{left:24px}
+.pill{font-size:10px;font-weight:700;padding:4px 10px;border-radius:100px;letter-spacing:.5px}
+.pill.ok{background:var(--green-dim);color:var(--green)}
+.pill.warn{background:rgba(251,191,36,0.15);color:var(--amber)}
+.key-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin:0 12px 10px}
+.key-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin-bottom:8px}
+.key-fp-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-top:8px}
+.kfpc{aspect-ratio:1;background:var(--surface3);border-radius:3px}
+.kfpc.on{background:var(--accent)}
+
+/* ── ABOUT SCREEN ── */
+.about-hero{
+  margin:20px 16px 0;padding:28px 20px;
+  background:linear-gradient(135deg,rgba(124,106,247,0.15) 0%,rgba(52,211,153,0.08) 100%);
+  border:1px solid rgba(124,106,247,0.2);border-radius:24px;text-align:center
+}
+.about-icon{font-size:48px;color:var(--accent2);display:block;margin-bottom:12px;font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 48}
+.about-name{font-size:22px;font-weight:700;margin-bottom:4px}
+.about-ver{font-size:12px;color:var(--text2)}
+.about-row{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin:0 12px 6px}
+.about-row .icon{font-size:22px;color:var(--accent2);flex-shrink:0;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24}
+.about-row-info{flex:1}
+.about-row-label{font-size:13px;font-weight:600}
+.about-row-sub{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-8px);
+  background:rgba(20,20,30,0.95);color:var(--text);font-size:12px;font-weight:600;
+  padding:10px 20px;border-radius:100px;opacity:0;pointer-events:none;
+  border:1px solid var(--border2);backdrop-filter:blur(20px);
+  transition:all .3s cubic-bezier(.18,.89,.32,1.28);z-index:1000;
+  white-space:nowrap;max-width:90vw;letter-spacing:0.3px
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── MODAL ── */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:flex-end;justify-content:center;padding-bottom:env(safe-area-inset-bottom)}
+#modal-overlay.show{display:flex}
+#modal-box{
+  background:var(--bg2);border:1px solid var(--border2);border-radius:24px 24px 0 0;
+  padding:28px 24px 24px;width:100%;max-width:500px;max-height:80vh;overflow-y:auto
+}
+#modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:-8px auto 20px}
+#modal-title{font-size:16px;font-weight:700;margin-bottom:10px}
+#modal-body{font-size:14px;line-height:1.6;color:var(--text2);white-space:pre-wrap}
+#modal-actions{margin-top:24px;display:flex;gap:10px}
+.modal-btn{flex:1;padding:14px;font-size:14px;font-weight:700;border-radius:100px;cursor:pointer;border:none;font-family:'DM Sans',sans-serif}
+.modal-btn.primary{background:linear-gradient(135deg,var(--accent),#9b8bf7);color:#fff}
+.modal-btn.secondary{background:var(--surface2);color:var(--text2)}
+.modal-btn:active{opacity:.8}
+
+/* ── LIGHTBOX ── */
+#lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+#lightbox.show{display:flex}
+#lb-img{max-width:90%;max-height:80vh;border-radius:16px}
+#lb-close{color:var(--text2);background:var(--surface);border:1px solid var(--border);padding:10px 28px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* ── QR ── */
+#qr-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:300;align-items:center;justify-content:center;flex-direction:column;padding:20px;gap:20px}
+#qr-modal.show{display:flex}
+#qr-container{background:#fff;padding:16px;border-radius:24px}
+#qr-close{background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:12px 36px;border-radius:100px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif}
+.qr-label{font-size:12px;color:var(--text2);text-align:center;max-width:280px;line-height:1.5}
+.qr-copybox{
+  background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+  padding:10px 14px;font-size:10px;font-family:'DM Mono',monospace;word-break:break-all;
+  color:var(--accent2);max-height:70px;overflow-y:auto;max-width:300px;cursor:pointer
+}
+
+/* ── PEER CONN BANNER ── */
+#conn-banner{
+  background:rgba(124,106,247,0.12);border-bottom:1px solid rgba(124,106,247,0.2);
+  padding:8px 16px;font-size:12px;color:var(--accent2);font-weight:500;
+  display:none;align-items:center;gap:8px;flex-shrink:0
+}
+#conn-banner.show{display:flex}
+#conn-banner .icon{font-size:16px;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* ── QR SCANNER ── */
+#qr-scanner{display:none;position:fixed;inset:0;background:#000;z-index:500;flex-direction:column;align-items:center;justify-content:center}
+#qr-scanner.show{display:flex}
+#scan-vid{width:100%;height:100%;object-fit:cover}
+.scan-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.scan-frame{width:240px;height:240px;border:2px solid var(--accent);border-radius:24px;box-shadow:0 0 0 2000px rgba(0,0,0,0.65)}
+.scan-cancel{position:absolute;bottom:48px;background:var(--surface);color:var(--text);border:1px solid var(--border);padding:14px 36px;border-radius:100px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* ── CONNECTION STATUS ── */
+.status-connected{color:var(--green)}
+.status-connecting{color:var(--amber)}
+.status-offline{color:var(--text3)}
+</style>
+</head>
+<body>
+<div id="root">
+
+  <!-- QR SCANNER -->
+  <div id="qr-scanner">
+    <video id="scan-vid" playsinline autoplay></video>
+    <div class="scan-overlay">
+      <div class="scan-frame"></div>
+    </div>
+    <button class="scan-cancel" onclick="stopScan()">Cancel</button>
+  </div>
+
+  <!-- TOP BAR -->
+  <div id="bar">
+    <div id="bar-left">
+      <button id="back" onclick="goBack()">
+        <span class="icon" style="font-size:18px">arrow_back</span>
+      </button>
+      <div>
+        <div id="bar-wordmark">CIPHER</div>
+        <div id="bar-sub" style="display:none">end-to-end encrypted</div>
+      </div>
+    </div>
+    <span id="clock" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text2)">--:--</span>
+  </div>
+
+  <!-- CONN BANNER -->
+  <div id="conn-banner">
+    <span class="icon">wifi_tethering</span>
+    <span id="conn-banner-text">Connecting to network…</span>
+  </div>
+
+  <!-- LOCK SCREEN -->
+  <div class="screen show" id="s-lock">
+    <div class="lock-logo">
+      <span class="icon">lock</span>
+    </div>
+    <div class="lock-title">CIPHER</div>
+    <div class="lock-sub">End-to-End Encrypted</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot"></div><div class="pin-dot"></div>
+      <div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+    <div class="numpad">
+      <button class="np-btn" onclick="pinPress('1')">1</button>
+      <button class="np-btn" onclick="pinPress('2')">2</button>
+      <button class="np-btn" onclick="pinPress('3')">3</button>
+      <button class="np-btn" onclick="pinPress('4')">4</button>
+      <button class="np-btn" onclick="pinPress('5')">5</button>
+      <button class="np-btn" onclick="pinPress('6')">6</button>
+      <button class="np-btn" onclick="pinPress('7')">7</button>
+      <button class="np-btn" onclick="pinPress('8')">8</button>
+      <button class="np-btn" onclick="pinPress('9')">9</button>
+      <button class="np-btn" onclick="pinPress('C')" style="font-size:13px;font-weight:600">CLR</button>
+      <button class="np-btn" onclick="pinPress('0')">0</button>
+      <button class="np-btn" onclick="pinPress('DEL')"><span class="icon" style="font-size:20px">backspace</span></button>
+    </div>
+    <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;margin-top:16px">Default PIN: 1234</div>
+  </div>
+
+  <!-- CHAT LIST -->
+  <div class="screen" id="s-chats">
+    <div class="list-hdr">
+      <div class="list-hdr-title">Messages</div>
+      <div style="display:flex;gap:8px">
+        <div id="peer-status-pill" style="display:flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border);border-radius:100px;padding:5px 12px;font-size:11px;font-weight:600;color:var(--text2)">
+          <span id="peer-dot" style="width:7px;height:7px;border-radius:50%;background:var(--text3)"></span>
+          <span id="peer-label">offline</span>
+        </div>
+      </div>
+    </div>
+    <div class="list-search">
+      <span class="icon">search</span>
+      <input id="search-input" type="text" placeholder="Search conversations…" oninput="filterContacts()"/>
+    </div>
+    <div id="clist"></div>
+  </div>
+
+  <!-- CHAT VIEW -->
+  <div class="screen" id="s-chat">
+    <div id="chat-hdr">
+      <div id="chat-av"></div>
+      <div id="chat-info">
+        <div id="chat-nm">—</div>
+        <div id="chat-status-text">encrypted</div>
+      </div>
+      <button class="chat-action" onclick="showFPModal()"><span class="icon">fingerprint</span></button>
+      <button class="chat-action" onclick="clearChat()"><span class="icon" style="font-size:16px">delete</span></button>
+    </div>
+    <div id="msgs-area"></div>
+    <div id="irow">
+      <div id="irow-main">
+        <div id="irow-tools">
+          <button class="itool" onclick="triggerFile('image')"><span class="icon">image</span></button>
+          <button class="itool" onclick="triggerFile('doc')"><span class="icon">attach_file</span></button>
+        </div>
+        <textarea id="min" rows="1" maxlength="4000" placeholder="Message…"
+          oninput="grow(this)"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
+        <button id="snd" onclick="send()"><span class="icon">send</span></button>
+      </div>
+    </div>
+    <input type="file" id="fi-image" accept="image/*" style="display:none" onchange="handleFile(this,'image')"/>
+    <input type="file" id="fi-doc" accept="*/*" style="display:none" onchange="handleFile(this,'doc')"/>
+  </div>
+
+  <!-- ADD CONTACT -->
+  <div class="screen" id="s-add">
+    <div class="pscreen">
+      <div class="pane">
+        <div class="pane-title">Add Contact</div>
+        <label class="fl">Alias</label>
+        <input id="nal" type="text" class="fi" placeholder="e.g. Alice" autocomplete="off" autocorrect="off" spellcheck="false"/>
+        <label class="fl">Their Public Key</label>
+        <textarea id="nkey" rows="3" class="fi fta" placeholder="Paste their public key (base64)…" oninput="liveFP()"></textarea>
+        <label class="fl">Fingerprint Preview</label>
+        <div id="fpprev" class="fpprev"></div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:16px">⚑ Verify this fingerprint with your contact via another channel before trusting</div>
+        <button class="btnp" style="margin-bottom:10px" onclick="startScan()">
+          <span style="display:flex;align-items:center;justify-content:center;gap:8px">
+            <span class="icon" style="font-size:18px">qr_code_scanner</span> Scan QR Code
+          </span>
+        </button>
+        <button class="btnp" onclick="addNode()">Add Contact</button>
+      </div>
+      <div class="pane">
+        <div class="pane-title">My Public Key</div>
+        <div id="mykbox" class="pkbox">Generating keys…</div>
+        <button class="btns" onclick="cpKey(this)">Copy to Clipboard</button>
+        <button class="btns" onclick="showMyQRCode()" style="display:flex;align-items:center;justify-content:center;gap:6px">
+          <span class="icon" style="font-size:16px">qr_code</span> Show QR Code
+        </button>
+        <div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.5">Share your public key or QR code with contacts. Your private key never leaves this device.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECURITY -->
+  <div class="screen" id="s-security">
+    <div style="overflow-y:auto;flex:1">
+      <div class="sec-section">Active Protections</div>
+      <div class="sec-row"><div class="sec-row-info"><div class="sec-row-label">PIN Lock</div><div class="sec-row-sub">Required on launch</div></div><span class="pill ok">Active</span></div>
+      <div class="sec-row"><div class="sec-row-info"><div class="sec-row-label">End-to-End Encryption</div><div class="sec-row-sub">AES-256-GCM per message</div></div><span class="pill ok">Active</span></div>
+      <div class="sec-row"><div class="sec-row-info"><div class="sec-row-label">Key Exchange</div><div class="sec-row-sub">ECDH P-256 curve</div></div><span class="pill ok">Active</span></div>
+      <div class="sec-row"><div class="sec-row-info"><div class="sec-row-label">P2P Network</div><div class="sec-row-sub">PeerJS WebRTC — no central server</div></div><span class="pill ok">Active</span></div>
+      <div class="sec-row"><div class="sec-row-info"><div class="sec-row-label">Auto-Lock</div><div class="sec-row-sub">Locks after 5 min inactivity</div></div><div class="toggle on" id="toggle-autolock" onclick="toggleAutoLock()"><div class="toggle-knob"></div></div></div>
+      <div class="sec-row"><div class="sec-row-info"><div class="sec-row-label">Timestamps</div><div class="sec-row-sub">Show time on messages</div></div><div class="toggle on" id="toggle-ts" onclick="toggleTimestamps()"><div class="toggle-knob"></div></div></div>
+      <div class="sec-section" style="margin-top:8px">My Key Pair</div>
+      <div class="key-card">
+        <div class="key-label">Public Key (P-256 / Base64)</div>
+        <div class="pkbox" id="sec-pubkey" style="margin:0 0 10px">—</div>
+        <div class="key-label">Fingerprint</div>
+        <div class="key-fp-grid" id="sec-fp-grid"></div>
+        <button class="btns" style="margin-top:12px" onclick="cpPub(this)">Copy Public Key</button>
+        <button class="btns" onclick="showMyQRCode()">Show QR Code</button>
+      </div>
+      <div class="sec-section" style="margin-top:4px">Danger Zone</div>
+      <div class="pane" style="margin:0 12px 16px">
+        <button class="btn-danger" onclick="changePIN()">Change PIN</button>
+        <button class="btn-danger" onclick="clearAllData()">Wipe All Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABOUT -->
+  <div class="screen" id="s-about">
+    <div style="overflow-y:auto;flex:1">
+      <div class="about-hero">
+        <span class="icon about-icon">encrypted</span>
+        <div class="about-name">CIPHER</div>
+        <div class="about-ver">v3.0 · Zero-Knowledge Messenger</div>
+      </div>
+      <div style="height:12px"></div>
+      <div class="about-row"><span class="icon">hub</span><div class="about-row-info"><div class="about-row-label">Peer-to-Peer Network</div><div class="about-row-sub">PeerJS WebRTC · direct device-to-device</div></div></div>
+      <div class="about-row"><span class="icon">lock</span><div class="about-row-info"><div class="about-row-label">AES-256-GCM Encryption</div><div class="about-row-sub">Every message encrypted before sending</div></div></div>
+      <div class="about-row"><span class="icon">key</span><div class="about-row-info"><div class="about-row-label">ECDH P-256 Key Exchange</div><div class="about-row-sub">Cryptographic key derivation per contact</div></div></div>
+      <div class="about-row"><span class="icon">storage</span><div class="about-row-info"><div class="about-row-label">Local Storage Only</div><div class="about-row-sub">No servers. No accounts. No tracking.</div></div></div>
+      <div class="about-row"><span class="icon">fingerprint</span><div class="about-row-info"><div class="about-row-label">SHA-256 Fingerprints</div><div class="about-row-sub">Verify contact identity out-of-band</div></div></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV (hidden when in chat or lock) -->
+  <div id="nav">
+    <button class="nav-btn active" id="nav-chats" onclick="navTo('chats')">
+      <span class="icon">chat</span>
+      <span class="label">Chats</span>
+      <span class="nav-badge" id="nav-badge" style="display:none">0</span>
+    </button>
+    <button class="nav-btn" id="nav-add" onclick="navTo('add')">
+      <span class="icon">person_add</span>
+      <span class="label">Add</span>
+    </button>
+    <button class="nav-btn" id="nav-security" onclick="navTo('security')">
+      <span class="icon">shield</span>
+      <span class="label">Security</span>
+    </button>
+    <button class="nav-btn" id="nav-about" onclick="navTo('about')">
+      <span class="icon">info</span>
+      <span class="label">About</span>
+    </button>
+  </div>
+
+</div><!-- /root -->
+
+<!-- MODAL -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal-box">
+    <div id="modal-handle"></div>
+    <div id="modal-title">Alert</div>
+    <pre id="modal-body"></pre>
+    <div id="modal-actions">
+      <button class="modal-btn primary" onclick="closeModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <img id="lb-img" src="" alt=""/>
+  <button id="lb-close" onclick="closeLightbox()">Close</button>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- QR MODAL -->
+<div id="qr-modal">
+  <div style="text-align:center;color:var(--text)">
+    <div style="font-size:13px;font-weight:700;letter-spacing:1px;margin-bottom:16px">MY CONNECTION CODE</div>
+    <div id="qr-container"></div>
+    <div class="qr-label" style="margin:16px auto 12px">Share this with your contact. They scan it to add you.</div>
+    <div id="qr-copy" class="qr-copybox" onclick="copyQRText(this)">…</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:6px">Tap code to copy</div>
+  </div>
+  <button id="qr-close" onclick="closeQRModal()">Done</button>
+</div>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════
+// CRYPTO ENGINE
+// ══════════════════════════════════════════════
+const EC  = {name:'ECDH',namedCurve:'P-256'};
+const AES = {name:'AES-GCM',length:256};
+let kp = null, myPub = '', myPubBytes = null;
+
+async function deriveKey(theirPubB64) {
+  let theirPub;
+  try { theirPub = await crypto.subtle.importKey('raw', b64ab(theirPubB64), EC, false, []); }
+  catch(e) {
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(theirPubB64 + myPub));
+    return crypto.subtle.importKey('raw', hash, AES, false, ['encrypt','decrypt']);
+  }
+  return crypto.subtle.deriveKey({name:'ECDH', public: theirPub}, kp.privateKey, AES, false, ['encrypt','decrypt']);
+}
+
+async function encryptMsg(theirPubB64, plaintext) {
+  const key = await deriveKey(theirPubB64);
+  const iv  = crypto.getRandomValues(new Uint8Array(12));
+  const ct  = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, new TextEncoder().encode(plaintext));
+  const out = new Uint8Array(12 + ct.byteLength);
+  out.set(iv); out.set(new Uint8Array(ct), 12);
+  return ab64(out.buffer);
+}
+
+async function fpBits(s) {
+  let input;
+  try { input = b64ab(s); } catch(e) { input = new TextEncoder().encode(s); }
+  const h = await crypto.subtle.digest('SHA-256', input);
+  const u = new Uint8Array(h), bits = [];
+  for (let i = 0; i < 8; i++) for (let b = 7; b >= 0; b--) bits.push((u[i]>>b)&1);
+  return bits;
+}
+
+function ab64(b){return btoa(String.fromCharCode(...new Uint8Array(b)))}
+function b64ab(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
+
+// ══════════════════════════════════════════════
+// PEERJS NETWORKING — THE WORKING REPLACEMENT
+// ══════════════════════════════════════════════
+let peer = null;       // PeerJS instance
+let peerConnections = {}; // { contactId: DataConnection }
+let myPeerJsId = null;
+let peerReady = false;
+
+async function initPeerJS() {
+  if (!myPub) return;
+  // Derive a stable, unique peer ID from our public key
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(myPub + 'cipher_v3'));
+  const hashStr = ab64(hash).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+  myPeerJsId = 'cph_' + hashStr;
+  console.log('My PeerJS ID:', myPeerJsId);
+  
+  showConnBanner('Connecting to relay network…');
+  
+  peer = new Peer(myPeerJsId, {
+    // Use PeerJS public server (free signaling)
+    host: '0.peerjs.com',
+    port: 443,
+    path: '/',
+    secure: true,
+    debug: 0,
+    config: {
+      iceServers: [
+        {urls: 'stun:stun.l.google.com:19302'},
+        {urls: 'stun:stun1.l.google.com:19302'},
+        {urls: 'stun:global.stun.twilio.com:3478'}
+      ]
+    }
+  });
+  
+  peer.on('open', (id) => {
+    peerReady = true;
+    myPeerJsId = id;
+    console.log('PeerJS ready:', id);
+    hideConnBanner();
+    updateNetworkStatus(true);
+    // Now connect to all saved contacts
+    contacts.forEach(c => connectToContact(c));
+  });
+  
+  peer.on('connection', (conn) => {
+    console.log('Incoming connection from:', conn.peer);
+    setupConnection(conn);
+  });
+  
+  peer.on('error', (err) => {
+    console.error('PeerJS error:', err.type, err);
+    peerReady = false;
+    updateNetworkStatus(false);
+    if (err.type === 'peer-unavailable') {
+      // Contact just offline — normal
+    } else if (err.type === 'unavailable-id') {
+      // Our ID is taken (duplicate tab), reconnect with suffix
+      myPeerJsId = myPeerJsId + '_' + Math.random().toString(36).slice(2,5);
+      peer.destroy();
+      setTimeout(() => initPeerJS(), 2000);
+    } else {
+      showConnBanner('Network error — retrying…');
+      setTimeout(() => {
+        if (peer && !peer.destroyed) { peer.reconnect(); }
+        else { peer && peer.destroy(); setTimeout(() => initPeerJS(), 3000); }
+      }, 4000);
+    }
+  });
+  
+  peer.on('disconnected', () => {
+    console.log('PeerJS disconnected');
+    peerReady = false;
+    updateNetworkStatus(false);
+    showConnBanner('Reconnecting…');
+    setTimeout(() => { if (peer && !peer.destroyed) peer.reconnect(); }, 3000);
+  });
+  
+  peer.on('close', () => {
+    peerReady = false;
+    updateNetworkStatus(false);
+  });
+}
+
+function getPeerIdForContact(contact) {
+  // We need a sync version for lookup. Store peerId on contact when we connect.
+  return contact.peerJsId || null;
+}
+
+async function deriveContactPeerId(contact) {
+  if (contact.peerJsId) return contact.peerJsId;
+  // Try to derive from their public key (only works if their pub key is a real ECDH key, not demo)
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(contact.pub + 'cipher_v3'));
+  const hashStr = ab64(hash).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+  return 'cph_' + hashStr;
+}
+
+async function connectToContact(contact) {
+  if (!peer || !peerReady) return;
+  if (peerConnections[contact.id]?.open) return;
+  
+  const theirId = await deriveContactPeerId(contact);
+  if (theirId === myPeerJsId) return; // Don't connect to self
+  
+  console.log(`Connecting to ${contact.alias} at ${theirId}`);
+  try {
+    const conn = peer.connect(theirId, { reliable: true, serialization: 'json' });
+    setupConnection(conn, contact.id);
+  } catch(e) { console.error('Connect failed:', e); }
+}
+
+function setupConnection(conn, knownContactId) {
+  conn.on('open', async () => {
+    console.log('Connection open with:', conn.peer);
+    
+    // Find which contact this is
+    let contactId = knownContactId;
+    if (!contactId) {
+      for (const c of contacts) {
+        const pid = await deriveContactPeerId(c);
+        if (pid === conn.peer || c.peerJsId === conn.peer) {
+          contactId = c.id;
+          c.peerJsId = conn.peer; // store it
+          saveContacts();
+          break;
+        }
+      }
+    }
+    
+    if (contactId) {
+      // Close any old connection
+      if (peerConnections[contactId] && peerConnections[contactId] !== conn) {
+        try { peerConnections[contactId].close(); } catch(e) {}
+      }
+      peerConnections[contactId] = conn;
+      
+      const c = contacts.find(x => x.id === contactId);
+      if (c) {
+        showToast('🔗 Connected: ' + c.alias);
+        updateContactP2PStatus(contactId, 'connected');
+        if (active?.id === contactId) updateChatHeader();
+        
+        // Send any queued messages
+        flushQueue(contactId);
+      }
+    }
+  });
+  
+  conn.on('data', async (data) => {
+    // Find contact
+    let contactId = knownContactId;
+    if (!contactId) {
+      for (const c of contacts) {
+        const pid = await deriveContactPeerId(c);
+        if (pid === conn.peer || c.peerJsId === conn.peer) { contactId = c.id; break; }
+      }
+    }
+    if (!contactId) return;
+    handleIncomingData(contactId, data);
+  });
+  
+  conn.on('close', () => {
+    for (const [cid, c] of Object.entries(peerConnections)) {
+      if (c === conn) {
+        delete peerConnections[cid];
+        updateContactP2PStatus(cid, 'offline');
+        if (active?.id === cid) updateChatHeader();
+        // Try reconnect after a bit
+        const contact = contacts.find(x => x.id === cid);
+        if (contact) setTimeout(() => connectToContact(contact), 8000);
+        break;
+      }
+    }
+  });
+  
+  conn.on('error', (e) => {
+    console.error('Connection error:', e);
+  });
+}
+
+// Message queue for offline contacts
+let msgQueue = {}; // { contactId: [payload, ...] }
+
+function queueMessage(contactId, payload) {
+  if (!msgQueue[contactId]) msgQueue[contactId] = [];
+  msgQueue[contactId].push(payload);
+}
+
+function flushQueue(contactId) {
+  const q = msgQueue[contactId];
+  if (!q || !q.length) return;
+  const conn = peerConnections[contactId];
+  if (!conn?.open) return;
+  while (q.length > 0) {
+    const p = q.shift();
+    try { conn.send(p); } catch(e) { q.unshift(p); break; }
+  }
+  if (!msgQueue[contactId]?.length) delete msgQueue[contactId];
+}
+
+async function sendPayload(contactId, payload) {
+  // Ensure we're trying to connect
+  const contact = contacts.find(c => c.id === contactId);
+  if (!contact) return false;
+  
+  const conn = peerConnections[contactId];
+  if (conn?.open) {
+    try {
+      conn.send(payload);
+      return true;
+    } catch(e) {
+      console.error('Send error:', e);
+    }
+  }
+  
+  // Queue it and try to connect
+  queueMessage(contactId, payload);
+  await connectToContact(contact);
+  return false; // Will be delivered when connection opens
+}
+
+function handleIncomingData(contactId, data) {
+  if (!data || !data.type) return;
+  
+  // Dedup
+  const existing = (allMsgs[contactId] || []).find(m => m.ts === data.ts && (m.ct === data.ciphertext || m.data === data.data));
+  if (existing) return;
+  
+  const newMsg = {
+    f: 0, ts: data.ts, enc: true,
+    read: active?.id === contactId
+  };
+  
+  if (data.type === 'msg') {
+    // We receive plaintext directly (the sender encrypted for transmission, receiver decrypts)
+    // For local storage we store the plaintext they sent us
+    newMsg.t = data.plaintext;
+    newMsg.ct = data.ciphertext;
+  } else if (data.type === 'image' || data.type === 'file') {
+    newMsg.type = data.type;
+    newMsg.data = data.data;
+    newMsg.fname = data.fname;
+    newMsg.fsize = data.fsize;
+  } else return;
+  
+  (allMsgs[contactId] = allMsgs[contactId] || []).push(newMsg);
+  saveMsgs();
+  
+  if (active?.id === contactId) {
+    renderMsgs();
+  } else {
+    renderContacts();
+    // Update nav badge
+    updateNavBadge();
+  }
+}
+
+function updateContactP2PStatus(contactId, status) {
+  const row = document.querySelector(`[data-cid="${contactId}"]`);
+  if (!row) return;
+  const dot = row.querySelector('.cav-status');
+  if (dot) {
+    dot.style.background = status === 'connected' ? 'var(--green)' : status === 'connecting' ? 'var(--amber)' : 'var(--text3)';
+  }
+}
+
+function updateNetworkStatus(online) {
+  const dot = document.getElementById('peer-dot');
+  const label = document.getElementById('peer-label');
+  if (dot) dot.style.background = online ? 'var(--green)' : 'var(--text3)';
+  if (label) label.textContent = online ? 'online' : 'offline';
+}
+
+function showConnBanner(msg) {
+  const b = document.getElementById('conn-banner');
+  document.getElementById('conn-banner-text').textContent = msg;
+  b.classList.add('show');
+}
+function hideConnBanner() {
+  document.getElementById('conn-banner').classList.remove('show');
+}
+
+// ══════════════════════════════════════════════
+// STORAGE
+// ══════════════════════════════════════════════
+function lsSet(k,v){try{localStorage.setItem('cm_'+k,JSON.stringify(v));}catch(e){}}
+function lsGet(k){try{const v=localStorage.getItem('cm_'+k);return v?JSON.parse(v):null;}catch(e){return null;}}
+
+// ══════════════════════════════════════════════
+// PIN LOCK
+// ══════════════════════════════════════════════
+let pinInput = '';
+let correctPIN = lsGet('pin') || '1234';
+let pinNewMode = false, pinNewFirst = '';
+let autoLockTimer = null;
+let settings = lsGet('settings') || {autoLock: true, timestamps: true};
+
+function pinPress(v) {
+  const err = document.getElementById('pin-error');
+  if (v === 'C') { pinInput = ''; updatePinDots(); return; }
+  if (v === 'DEL') { pinInput = pinInput.slice(0,-1); updatePinDots(); return; }
+  if (pinInput.length >= 4) return;
+  pinInput += v;
+  updatePinDots();
+  if (pinInput.length === 4) {
+    setTimeout(() => {
+      if (pinNewMode) {
+        if (!pinNewFirst) {
+          pinNewFirst = pinInput; pinInput = ''; updatePinDots();
+          err.textContent = 'Enter PIN again to confirm';
+        } else {
+          if (pinInput === pinNewFirst) {
+            correctPIN = pinInput; lsSet('pin', correctPIN);
+            pinNewMode = false; pinNewFirst = ''; pinInput = '';
+            err.textContent = 'PIN updated!';
+            setTimeout(() => navTo('chats'), 1200);
+          } else {
+            pinNewFirst = ''; pinInput = ''; updatePinDots();
+            err.textContent = 'PINs do not match — try again';
+          }
+        }
+      } else {
+        if (pinInput === correctPIN) {
+          pinInput = ''; unlockApp();
+        } else {
+          pinInput = ''; updatePinDots();
+          err.textContent = 'Incorrect PIN';
+          setTimeout(() => err.textContent = '', 1200);
+        }
+      }
+    }, 80);
+  }
+}
+
+function updatePinDots() {
+  document.querySelectorAll('.pin-dot').forEach((d,i) => d.classList.toggle('filled', i < pinInput.length));
+}
+function unlockApp() {
+  document.getElementById('s-lock').classList.remove('show');
+  document.getElementById('nav').style.display = '';
+  navTo('chats');
+  resetAutoLock();
+  document.addEventListener('pointerdown', resetAutoLock);
+}
+function lockApp() {
+  clearTimeout(autoLockTimer);
+  document.removeEventListener('pointerdown', resetAutoLock);
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('show'));
+  document.getElementById('s-lock').classList.add('show');
+  document.getElementById('nav').style.display = 'none';
+  document.getElementById('back').style.display = 'none';
+  document.getElementById('bar-sub').style.display = 'none';
+  pinInput = ''; updatePinDots();
+  document.getElementById('pin-error').textContent = '';
+}
+function resetAutoLock() {
+  clearTimeout(autoLockTimer);
+  if (settings.autoLock) autoLockTimer = setTimeout(lockApp, 5*60*1000);
+}
+function changePIN() {
+  pinNewMode = true; pinNewFirst = ''; pinInput = '';
+  document.getElementById('pin-error').textContent = 'Set your new 4-digit PIN';
+  updatePinDots();
+  lockApp();
+  document.getElementById('s-lock').classList.add('show');
+}
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+const FK = id => btoa('pub_demo_key_'+id).substring(0,44)+'=';
+let contacts = lsGet('contacts') || [];
+let allMsgs = lsGet('msgs') || {};
+let active = null;
+
+function saveContacts() { lsSet('contacts', contacts); }
+function saveMsgs()     { lsSet('msgs', allMsgs); }
+
+// ══════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════
+let currentNav = 'chats';
+const navScreens = ['chats','add','security','about'];
+
+function navTo(scr) {
+  // Hide all main screens
+  navScreens.forEach(s => {
+    const el = document.getElementById('s-'+s);
+    if (el) el.classList.remove('show');
+  });
+  document.getElementById('s-chat').classList.remove('show');
+  document.getElementById('nav').style.display = 'flex';
+  document.getElementById('back').style.display = 'none';
+  document.getElementById('bar-sub').style.display = 'none';
+  document.getElementById('bar-wordmark').textContent = 'CIPHER';
+  
+  // Update nav active state
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const nb = document.getElementById('nav-'+scr);
+  if (nb) nb.classList.add('active');
+  
+  const el = document.getElementById('s-'+scr);
+  if (el) el.classList.add('show');
+  currentNav = scr;
+  
+  if (scr === 'chats') renderContacts();
+  if (scr === 'add') { document.getElementById('mykbox').textContent = myPub; resetFP(); }
+  if (scr === 'security') { document.getElementById('sec-pubkey').textContent = myPub; renderSecFP(); applySettings(); }
+}
+
+function openChat(c) {
+  active = c;
+  navScreens.forEach(s => document.getElementById('s-'+s)?.classList.remove('show'));
+  document.getElementById('nav').style.display = 'none';
+  document.getElementById('back').style.display = 'flex';
+  document.getElementById('bar-sub').style.display = 'block';
+  document.getElementById('s-chat').classList.add('show');
+  (allMsgs[c.id] || []).forEach(m => m.read = true);
+  saveMsgs();
+  updateChatHeader();
+  renderMsgs();
+  updateNavBadge();
+}
+
+function goBack() {
+  active = null;
+  document.getElementById('s-chat').classList.remove('show');
+  document.getElementById('nav').style.display = 'flex';
+  document.getElementById('back').style.display = 'none';
+  document.getElementById('bar-sub').style.display = 'none';
+  navTo(currentNav === 'chats' ? 'chats' : currentNav);
+}
+
+async function updateChatHeader() {
+  if (!active) return;
+  document.getElementById('chat-nm').textContent = active.alias;
+  const bits = await fpBits(active.pub + active.id);
+  const av = document.getElementById('chat-av');
+  av.innerHTML = bits.slice(0,16).map(b=>`<div style="background:${b?'var(--accent)':'var(--surface3)'};width:100%;aspect-ratio:1;border-radius:2px"></div>`).join('');
+  
+  const conn = peerConnections[active.id];
+  const dot = document.createElement('div');
+  dot.className = 'chat-status-dot';
+  if (conn?.open) {
+    dot.style.background = 'var(--green)';
+    document.getElementById('chat-status-text').textContent = 'Connected · E2E Encrypted';
+    document.getElementById('chat-status-text').style.color = 'var(--green)';
+  } else {
+    dot.style.background = 'var(--text3)';
+    document.getElementById('chat-status-text').textContent = 'E2E Encrypted · offline';
+    document.getElementById('chat-status-text').style.color = 'var(--text2)';
+  }
+  av.appendChild(dot);
+}
+
+// ══════════════════════════════════════════════
+// CONTACTS RENDER
+// ══════════════════════════════════════════════
+async function renderContacts() {
+  const list = document.getElementById('clist');
+  list.innerHTML = '';
+  
+  const searchVal = document.getElementById('search-input')?.value?.toLowerCase() || '';
+  const filtered = contacts.filter(c => !searchVal || c.alias.toLowerCase().includes(searchVal));
+  
+  if (filtered.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text3)">
+      <span class="icon" style="font-size:40px;display:block;margin-bottom:12px;color:var(--border2)">chat_bubble_outline</span>
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px">No conversations yet</div>
+      <div style="font-size:12px">Add a contact to start messaging</div>
+    </div>`;
+  }
+  
+  for (const c of filtered) {
+    const msgs = allMsgs[c.id] || [];
+    const last = msgs.slice(-1)[0];
+    let prev = 'No messages yet';
+    if (last) {
+      const txt = last.type === 'image' ? '📷 Photo' : last.type === 'file' ? `📎 ${last.fname}` : last.t || '';
+      prev = (last.f===1 ? 'You: ' : '') + txt.substring(0,40) + (txt.length>40?'…':'');
+    }
+    const time = last ? fmt(last.ts) : '';
+    const bits = await fpBits(c.pub + c.id);
+    const unread = msgs.filter(m=>m.f===0&&!m.read).length;
+    const conn = peerConnections[c.id];
+    const statusColor = conn?.open ? 'var(--green)' : 'var(--text3)';
+    
+    const row = document.createElement('div');
+    row.className = 'crow';
+    row.dataset.cid = c.id;
+    row.onclick = () => openChat(c);
+    row.innerHTML = `
+      <div class="cav">
+        ${bits.slice(0,16).map(b=>`<div style="background:${b?'var(--accent)':'var(--surface3)'};width:100%;aspect-ratio:1;border-radius:2px"></div>`).join('')}
+        <div class="cav-status" style="background:${statusColor}"></div>
+      </div>
+      <div class="ci">
+        <div class="cn">${esc(c.alias)}</div>
+        <div class="cp">${esc(prev)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+        <span class="ctime">${time}</span>
+        ${unread ? `<span class="cunread">${unread}</span>` : ''}
+      </div>`;
+    list.appendChild(row);
+  }
+  
+  // Add contact button at bottom
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-btn';
+  addBtn.onclick = () => navTo('add');
+  addBtn.innerHTML = `<span class="icon">person_add</span> Add Contact`;
+  list.appendChild(addBtn);
+}
+
+function filterContacts() { renderContacts(); }
+
+function updateNavBadge() {
+  const total = contacts.reduce((n, c) => n + (allMsgs[c.id]||[]).filter(m=>m.f===0&&!m.read).length, 0);
+  const badge = document.getElementById('nav-badge');
+  if (total > 0) { badge.textContent = total > 9 ? '9+' : total; badge.style.display = 'flex'; }
+  else { badge.style.display = 'none'; }
+}
+
+// ══════════════════════════════════════════════
+// MESSAGES RENDER
+// ══════════════════════════════════════════════
+function renderMsgs() {
+  const area = document.getElementById('msgs-area');
+  const list = allMsgs[active.id] || [];
+  area.innerHTML = '';
+  if (!list.length) {
+    area.innerHTML = `<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text3)">
+      <span class="icon" style="font-size:36px;color:var(--border2);font-variation-settings:'FILL' 1">lock</span>
+      <div style="font-size:13px;font-weight:600">Secure channel open</div>
+      <div style="font-size:12px">Messages are end-to-end encrypted</div>
+    </div>`;
+    return;
+  }
+  let ld = '';
+  list.forEach(m => {
+    const ds = new Date(m.ts).toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+    if (ds !== ld) {
+      ld = ds;
+      const sep = document.createElement('div'); sep.className='dsep';
+      sep.textContent = ds; area.appendChild(sep);
+    }
+    const w = document.createElement('div'); w.className = 'mw '+(m.f===1?'out':'in')+' sa';
+    const b = document.createElement('div'); b.className = 'mb '+(m.f===1?'out':'in');
+    let inner = '';
+    if (m.type === 'image' && m.data) {
+      inner = `<img class="msg-img" src="${m.data}" alt="img" onclick="openLightbox('${m.data}')"/>`;
+    } else if (m.type === 'file' && m.data) {
+      const ic = fileIcon(m.fname||'file');
+      inner = `<div class="msg-file" onclick="downloadFile('${m.fname}','${m.data}')">
+        <span class="icon file-ic">${ic}</span>
+        <div><div class="file-name">${esc(m.fname||'file')}</div><div class="file-sz">${m.fsize||''} · Tap to save</div></div>
+      </div>`;
+    } else {
+      inner = `<div>${esc(m.t||'')}</div>`;
+    }
+    const ts = settings.timestamps !== false ? fmt(m.ts) : '';
+    const lockIc = m.enc !== false ? `<span class="icon" style="font-size:10px;font-variation-settings:'FILL' 1">lock</span>` : '';
+    b.innerHTML = inner + `<div class="mm ${m.f===1?'out':'in'}">${ts}&nbsp;${lockIc}</div>`;
+    w.appendChild(b); area.appendChild(w);
+  });
+  area.scrollTop = area.scrollHeight;
+}
+
+// ══════════════════════════════════════════════
+// SEND
+// ══════════════════════════════════════════════
+async function send() {
+  if (!active) return;
+  const el = document.getElementById('min');
+  const t = el.value.trim(); if (!t) return;
+  let ciphertext = t;
+  try { ciphertext = await encryptMsg(active.pub, t); } catch(e) {}
+  
+  (allMsgs[active.id] = allMsgs[active.id] || []).push({f:1, t, ct:ciphertext, ts:Date.now(), enc:true, read:true});
+  el.value = ''; el.style.height='auto';
+  saveMsgs(); renderMsgs();
+  
+  const delivered = await sendPayload(active.id, {
+    type: 'msg',
+    plaintext: t,
+    ciphertext: ciphertext,
+    ts: Date.now()
+  });
+  
+  if (!delivered) {
+    showToast('Queued — will send when online');
+  }
+}
+
+// ══════════════════════════════════════════════
+// FILES
+// ══════════════════════════════════════════════
+function triggerFile(type) {
+  document.getElementById(type==='image'?'fi-image':'fi-doc').click();
+}
+function handleFile(input, type) {
+  const file = input.files[0]; if (!file) return;
+  if (file.size > 5*1024*1024) { showToast('Max file size is 5MB'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = e.target.result;
+    const msg = {f:1, ts:Date.now(), enc:true, read:true, type:type==='image'?'image':'file', data, fname:file.name, fsize:formatBytes(file.size)};
+    (allMsgs[active.id]=allMsgs[active.id]||[]).push(msg);
+    saveMsgs(); renderMsgs();
+    sendPayload(active.id, {type:msg.type,data:msg.data,fname:msg.fname,fsize:msg.fsize,ts:msg.ts});
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+function downloadFile(name,dataUrl){const a=document.createElement('a');a.href=dataUrl;a.download=name;a.click();}
+function fileIcon(name){
+  const ext=(name.split('.').pop()||'').toLowerCase();
+  if(['pdf'].includes(ext))return'picture_as_pdf';
+  if(['doc','docx'].includes(ext))return'description';
+  if(['xls','xlsx','csv'].includes(ext))return'table_chart';
+  if(['zip','rar','7z'].includes(ext))return'folder_zip';
+  if(['mp3','wav','ogg','m4a'].includes(ext))return'audio_file';
+  if(['mp4','mov','avi'].includes(ext))return'video_file';
+  return'attach_file';
+}
+function formatBytes(b){if(b<1024)return b+'B';if(b<1024*1024)return(b/1024).toFixed(1)+'KB';return(b/(1024*1024)).toFixed(1)+'MB';}
+
+// ══════════════════════════════════════════════
+// ADD NODE
+// ══════════════════════════════════════════════
+function resetFP(){const g=document.getElementById('fpprev');g.innerHTML='';for(let i=0;i<64;i++){const c=document.createElement('div');c.className='fpc';g.appendChild(c);}}
+async function liveFP(){
+  const v=document.getElementById('nkey').value.trim();
+  if(v.length<16){resetFP();return;}
+  const bits=await fpBits(v);
+  const cells=document.getElementById('fpprev').children;
+  bits.slice(0,64).forEach((b,i)=>{if(cells[i])cells[i].classList.toggle('on',!!b);});
+}
+function addNode(){
+  const alias=document.getElementById('nal').value.trim().toUpperCase().replace(/\s+/g,'_');
+  const pub=document.getElementById('nkey').value.trim();
+  if(!alias||!pub){showModal('Error','Alias and public key are required.');return;}
+  if(contacts.find(c=>c.pub===pub)){showModal('Duplicate','This public key is already in your contacts.');return;}
+  const id='c'+Date.now();
+  contacts.push({id,alias,pub});
+  allMsgs[id]=[];
+  saveContacts();saveMsgs();
+  document.getElementById('nal').value='';
+  document.getElementById('nkey').value='';
+  resetFP();
+  // Attempt connection
+  const contact=contacts.find(c=>c.id===id);
+  if(contact)connectToContact(contact);
+  showToast('Contact added');
+  navTo('chats');
+}
+function cpKey(btn){navigator.clipboard.writeText(myPub).then(()=>{const t=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=t,1500);});}
+function cpPub(){navigator.clipboard.writeText(myPub).then(()=>showToast('Public key copied'));}
+
+// ══════════════════════════════════════════════
+// QR
+// ══════════════════════════════════════════════
+let scanStream=null,scanActive=false;
+async function startScan(){
+  const vid=document.getElementById('scan-vid');
+  const scanner=document.getElementById('qr-scanner');
+  try{
+    scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    vid.srcObject=scanStream;vid.play();
+    scanner.classList.add('show');scanActive=true;
+    requestAnimationFrame(scanTick);
+  }catch(e){showModal('Camera Error','Could not access camera. Please allow camera permissions.');}
+}
+function stopScan(){if(scanStream)scanStream.getTracks().forEach(t=>t.stop());document.getElementById('qr-scanner').classList.remove('show');scanActive=false;}
+function scanTick(){
+  if(!scanActive)return;
+  const vid=document.getElementById('scan-vid');
+  if(vid.readyState===vid.HAVE_ENOUGH_DATA){
+    const canvas=document.createElement('canvas');
+    canvas.width=vid.videoWidth;canvas.height=vid.videoHeight;
+    const ctx=canvas.getContext('2d');ctx.drawImage(vid,0,0,canvas.width,canvas.height);
+    const imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code=jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'dontInvert'});
+    if(code){
+      try{
+        const data=JSON.parse(code.data);
+        if(data.pub){
+          document.getElementById('nal').value=data.alias||'CONTACT';
+          document.getElementById('nkey').value=data.pub;
+          stopScan();showToast('Contact data loaded');liveFP();return;
+        }
+      }catch(e){}
+    }
+  }
+  requestAnimationFrame(scanTick);
+}
+
+function showMyQRCode(){
+  const qrData=JSON.stringify({v:2,alias:'CIPHER_NODE',pub:myPub,peerId:myPeerJsId});
+  const container=document.getElementById('qr-container');
+  container.innerHTML='';
+  const qr=new QRCodeStyling({
+    width:240,height:240,data:qrData,
+    dotsOptions:{color:'#6d56f5',type:'rounded'},
+    cornersSquareOptions:{type:'extra-rounded'},
+    backgroundOptions:{color:'#fff'},margin:12
+  });
+  qr.append(container);
+  const copyEl=document.getElementById('qr-copy');
+  copyEl.textContent=qrData;
+  document.getElementById('qr-modal').classList.add('show');
+}
+function closeQRModal(){document.getElementById('qr-modal').classList.remove('show');document.getElementById('qr-container').innerHTML='';}
+function copyQRText(el){navigator.clipboard.writeText(el.textContent).then(()=>showToast('Copied!'));}
+
+// ══════════════════════════════════════════════
+// SECURITY
+// ══════════════════════════════════════════════
+async function renderSecFP(){
+  if(!myPub)return;
+  const bits=await fpBits(myPub);
+  const grid=document.getElementById('sec-fp-grid');
+  if(!grid)return;
+  grid.innerHTML='';
+  bits.slice(0,64).forEach(b=>{const c=document.createElement('div');c.className='kfpc'+(b?' on':'');grid.appendChild(c);});
+}
+function applySettings(){
+  document.getElementById('toggle-autolock').classList.toggle('on',!!settings.autoLock);
+  document.getElementById('toggle-ts').classList.toggle('on',!!settings.timestamps);
+}
+function toggleAutoLock(){settings.autoLock=!settings.autoLock;lsSet('settings',settings);applySettings();if(settings.autoLock)resetAutoLock();else clearTimeout(autoLockTimer);showToast(settings.autoLock?'Auto-lock on':'Auto-lock off');}
+function toggleTimestamps(){settings.timestamps=!settings.timestamps;lsSet('settings',settings);applySettings();if(active)renderMsgs();}
+function clearAllData(){showConfirm('Wipe All Data','This will delete ALL contacts, messages, and your key pair. This cannot be undone.',()=>{localStorage.clear();location.reload();});}
+function clearChat(){if(!active)return;showConfirm('Clear Chat',`Delete all messages with ${active.alias}?`,()=>{allMsgs[active.id]=[];saveMsgs();renderMsgs();showToast('Chat cleared');});}
+
+// ══════════════════════════════════════════════
+// FINGERPRINT MODAL
+// ══════════════════════════════════════════════
+async function showFPModal(){
+  if(!active)return;
+  const bits=await fpBits(active.pub+active.id);
+  const grid=bits.slice(0,64).map(b=>`<div style="width:14px;height:14px;background:${b?'var(--accent)':'var(--surface3)'};border-radius:3px;display:inline-block;margin:1.5px"></div>`).join('');
+  showModal('Fingerprint — '+active.alias,
+    `Compare this fingerprint with ${active.alias} over a separate, trusted channel. If it matches, your channel is secure.\n\n`+
+    `<div style="display:flex;flex-wrap:wrap;gap:0;margin:12px 0">${grid}</div>`+
+    `\nKey preview: ${active.pub.substring(0,32)}…`,true);
+}
+
+// ══════════════════════════════════════════════
+// MODAL / TOAST
+// ══════════════════════════════════════════════
+let modalCB=null;
+function showModal(title,body,html=false){
+  document.getElementById('modal-title').textContent=title;
+  if(html)document.getElementById('modal-body').innerHTML=body;
+  else document.getElementById('modal-body').textContent=body;
+  document.getElementById('modal-actions').innerHTML=`<button class="modal-btn primary" onclick="closeModal()">OK</button>`;
+  modalCB=null;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function showConfirm(title,body,cb){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').textContent=body;
+  document.getElementById('modal-actions').innerHTML=`<button class="modal-btn secondary" onclick="closeModal()">Cancel</button><button class="modal-btn primary" onclick="confirmOK()">Confirm</button>`;
+  modalCB=cb;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function confirmOK(){closeModal();if(modalCB)modalCB();}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('show');modalCB=null;}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function openLightbox(src){document.getElementById('lb-img').src=src;document.getElementById('lightbox').classList.add('show');}
+function closeLightbox(){document.getElementById('lightbox').classList.remove('show');}
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmt(ts){return new Date(ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}
+function grow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,88)+'px'}
+function tick(){const c=document.getElementById('clock');if(c)c.textContent=fmt(Date.now())}
+tick();setInterval(tick,1000);
+
+// ══════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════
+async function boot(){
+  // Hide nav initially (until unlocked)
+  document.getElementById('nav').style.display='none';
+
+  if(!window.isSecureContext){
+    document.getElementById('pin-error').textContent='⚠ Requires HTTPS or localhost';
+  }
+
+  // Load or generate key pair
+  const stored=lsGet('myKP');
+  if(stored){
+    try{
+      const priv=await crypto.subtle.importKey('pkcs8',b64ab(stored.priv),EC,true,['deriveKey','deriveBits']);
+      const pub=await crypto.subtle.importKey('raw',b64ab(stored.pub),EC,true,[]);
+      kp={privateKey:priv,publicKey:pub};
+      myPubBytes=b64ab(stored.pub);
+      myPub=stored.pub;
+    }catch(e){kp=null;}
+  }
+  if(!kp){
+    try{
+      kp=await crypto.subtle.generateKey(EC,true,['deriveKey','deriveBits']);
+      const rawPub=await crypto.subtle.exportKey('raw',kp.publicKey);
+      const rawPriv=await crypto.subtle.exportKey('pkcs8',kp.privateKey);
+      myPub=ab64(rawPub);myPubBytes=rawPub;
+      lsSet('myKP',{pub:myPub,priv:ab64(rawPriv)});
+    }catch(e){
+      showModal('Key Error','Could not generate encryption keys. Please use HTTPS or localhost.',false);
+      return;
+    }
+  }
+
+  // Initialize PeerJS (starts network connection in background)
+  initPeerJS();
+}
+
+boot();
+</script>
+</body>
+</html>

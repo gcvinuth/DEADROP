@@ -1,0 +1,17 @@
+{
+  "name": "CIPHER_MSG",
+  "short_name": "CIPHER",
+  "description": "Zero-knowledge end-to-end encrypted messenger.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#141218",
+  "theme_color": "#141218",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/565/565547.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

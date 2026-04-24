@@ -701,96 +701,81 @@ function ab64(b){return btoa(String.fromCharCode(...new Uint8Array(b)))}
 function b64ab(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
 
 // ══════════════════════════════════════════════
-// PEERJS NETWORKING — THE WORKING REPLACEMENT
+// PEERJS NETWORKING
 // ══════════════════════════════════════════════
-let peer = null;       // PeerJS instance
+let peer = null;
 let peerConnections = {}; // { contactId: DataConnection }
 let myPeerJsId = null;
 let peerReady = false;
 
+// Chunked transfer state (for images/files > 16KB)
+const CHUNK_SIZE = 16 * 1024; // 16KB per chunk
+let incomingChunks = {}; // { transferId: { chunks:[], total, meta } }
+
 async function initPeerJS() {
   if (!myPub) return;
-  // Derive a stable, unique peer ID from our public key
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(myPub + 'cipher_v3'));
   const hashStr = ab64(hash).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
   myPeerJsId = 'cph_' + hashStr;
   console.log('My PeerJS ID:', myPeerJsId);
-  
   showConnBanner('Connecting to relay network…');
-  
+
   peer = new Peer(myPeerJsId, {
-    // Use PeerJS public server (free signaling)
-    host: '0.peerjs.com',
-    port: 443,
-    path: '/',
-    secure: true,
-    debug: 0,
-    config: {
-      iceServers: [
-        {urls: 'stun:stun.l.google.com:19302'},
-        {urls: 'stun:stun1.l.google.com:19302'},
-        {urls: 'stun:global.stun.twilio.com:3478'}
-      ]
-    }
+    host: '0.peerjs.com', port: 443, path: '/', secure: true, debug: 0,
+    config: { iceServers: [
+      {urls: 'stun:stun.l.google.com:19302'},
+      {urls: 'stun:stun1.l.google.com:19302'},
+      {urls: 'stun:global.stun.twilio.com:3478'}
+    ]}
   });
-  
+
   peer.on('open', (id) => {
-    peerReady = true;
-    myPeerJsId = id;
+    peerReady = true; myPeerJsId = id;
     console.log('PeerJS ready:', id);
-    hideConnBanner();
-    updateNetworkStatus(true);
-    // Now connect to all saved contacts
+    hideConnBanner(); updateNetworkStatus(true);
     contacts.forEach(c => connectToContact(c));
   });
-  
+
   peer.on('connection', (conn) => {
     console.log('Incoming connection from:', conn.peer);
     setupConnection(conn);
   });
-  
+
   peer.on('error', (err) => {
     console.error('PeerJS error:', err.type, err);
-    peerReady = false;
-    updateNetworkStatus(false);
+    peerReady = false; updateNetworkStatus(false);
     if (err.type === 'peer-unavailable') {
-      // Contact just offline — normal
+      // Contact offline — mark queued messages
+      const cid = findContactIdByPeerId(err.message?.match(/cph_\w+/)?.[0]);
+      if (cid) markQueuedMsgs(cid);
     } else if (err.type === 'unavailable-id') {
-      // Our ID is taken (duplicate tab), reconnect with suffix
       myPeerJsId = myPeerJsId + '_' + Math.random().toString(36).slice(2,5);
-      peer.destroy();
-      setTimeout(() => initPeerJS(), 2000);
+      peer.destroy(); setTimeout(() => initPeerJS(), 2000);
     } else {
       showConnBanner('Network error — retrying…');
       setTimeout(() => {
-        if (peer && !peer.destroyed) { peer.reconnect(); }
+        if (peer && !peer.destroyed) peer.reconnect();
         else { peer && peer.destroy(); setTimeout(() => initPeerJS(), 3000); }
       }, 4000);
     }
   });
-  
+
   peer.on('disconnected', () => {
-    console.log('PeerJS disconnected');
-    peerReady = false;
-    updateNetworkStatus(false);
+    peerReady = false; updateNetworkStatus(false);
     showConnBanner('Reconnecting…');
     setTimeout(() => { if (peer && !peer.destroyed) peer.reconnect(); }, 3000);
   });
-  
-  peer.on('close', () => {
-    peerReady = false;
-    updateNetworkStatus(false);
-  });
+
+  peer.on('close', () => { peerReady = false; updateNetworkStatus(false); });
 }
 
-function getPeerIdForContact(contact) {
-  // We need a sync version for lookup. Store peerId on contact when we connect.
-  return contact.peerJsId || null;
+function findContactIdByPeerId(pid) {
+  if (!pid) return null;
+  return contacts.find(c => c.peerJsId === pid)?.id || null;
 }
 
 async function deriveContactPeerId(contact) {
   if (contact.peerJsId) return contact.peerJsId;
-  // Try to derive from their public key (only works if their pub key is a real ECDH key, not demo)
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(contact.pub + 'cipher_v3'));
   const hashStr = ab64(hash).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
   return 'cph_' + hashStr;
@@ -799,12 +784,12 @@ async function deriveContactPeerId(contact) {
 async function connectToContact(contact) {
   if (!peer || !peerReady) return;
   if (peerConnections[contact.id]?.open) return;
-  
   const theirId = await deriveContactPeerId(contact);
-  if (theirId === myPeerJsId) return; // Don't connect to self
-  
+  if (theirId === myPeerJsId) return;
   console.log(`Connecting to ${contact.alias} at ${theirId}`);
   try {
+    // IMPORTANT: Use 'json' serialization — PeerJS handles JSON well.
+    // Large binaries (images/files) are chunked manually before sending.
     const conn = peer.connect(theirId, { reliable: true, serialization: 'json' });
     setupConnection(conn, contact.id);
   } catch(e) { console.error('Connect failed:', e); }
@@ -812,43 +797,34 @@ async function connectToContact(contact) {
 
 function setupConnection(conn, knownContactId) {
   conn.on('open', async () => {
-    console.log('Connection open with:', conn.peer);
-    
-    // Find which contact this is
     let contactId = knownContactId;
     if (!contactId) {
       for (const c of contacts) {
         const pid = await deriveContactPeerId(c);
         if (pid === conn.peer || c.peerJsId === conn.peer) {
-          contactId = c.id;
-          c.peerJsId = conn.peer; // store it
-          saveContacts();
-          break;
+          contactId = c.id; c.peerJsId = conn.peer; saveContacts(); break;
         }
       }
     }
-    
-    if (contactId) {
-      // Close any old connection
-      if (peerConnections[contactId] && peerConnections[contactId] !== conn) {
-        try { peerConnections[contactId].close(); } catch(e) {}
-      }
-      peerConnections[contactId] = conn;
-      
-      const c = contacts.find(x => x.id === contactId);
-      if (c) {
-        showToast('🔗 Connected: ' + c.alias);
-        updateContactP2PStatus(contactId, 'connected');
-        if (active?.id === contactId) updateChatHeader();
-        
-        // Send any queued messages
-        flushQueue(contactId);
-      }
+    if (!contactId) return;
+
+    if (peerConnections[contactId] && peerConnections[contactId] !== conn) {
+      try { peerConnections[contactId].close(); } catch(e) {}
+    }
+    peerConnections[contactId] = conn;
+
+    const c = contacts.find(x => x.id === contactId);
+    if (c) {
+      showToast('🔗 Connected: ' + c.alias);
+      updateContactP2PStatus(contactId, 'connected');
+      if (active?.id === contactId) updateChatHeader();
+      // Flush queued messages + update their status icons
+      flushQueue(contactId);
+      markDeliveredMsgs(contactId);
     }
   });
-  
+
   conn.on('data', async (data) => {
-    // Find contact
     let contactId = knownContactId;
     if (!contactId) {
       for (const c of contacts) {
@@ -859,27 +835,147 @@ function setupConnection(conn, knownContactId) {
     if (!contactId) return;
     handleIncomingData(contactId, data);
   });
-  
+
   conn.on('close', () => {
     for (const [cid, c] of Object.entries(peerConnections)) {
       if (c === conn) {
         delete peerConnections[cid];
         updateContactP2PStatus(cid, 'offline');
         if (active?.id === cid) updateChatHeader();
-        // Try reconnect after a bit
         const contact = contacts.find(x => x.id === cid);
         if (contact) setTimeout(() => connectToContact(contact), 8000);
         break;
       }
     }
   });
-  
-  conn.on('error', (e) => {
-    console.error('Connection error:', e);
-  });
+
+  conn.on('error', (e) => console.error('Connection error:', e));
 }
 
-// Message queue for offline contacts
+// ── CHUNKED BINARY TRANSFER ──
+// Splits large data (images/files) into 16KB chunks to avoid PeerJS payload limits
+function sendChunked(conn, payload) {
+  const json = JSON.stringify(payload);
+  const bytes = new TextEncoder().encode(json);
+  const total = Math.ceil(bytes.length / CHUNK_SIZE);
+  const transferId = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+
+  if (total === 1) {
+    // Small enough — send directly
+    conn.send(payload);
+    return;
+  }
+
+  for (let i = 0; i < total; i++) {
+    const chunk = bytes.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+    // Encode chunk as base64 string for JSON transport
+    const chunkB64 = btoa(String.fromCharCode(...chunk));
+    conn.send({ _chunk: true, transferId, index: i, total, data: chunkB64 });
+  }
+}
+
+function handleIncomingData(contactId, data) {
+  // Handle chunked transfers
+  if (data && data._chunk) {
+    const { transferId, index, total, data: chunkB64 } = data;
+    if (!incomingChunks[transferId]) {
+      incomingChunks[transferId] = { chunks: new Array(total), received: 0, total, contactId };
+    }
+    incomingChunks[transferId].chunks[index] = chunkB64;
+    incomingChunks[transferId].received++;
+
+    if (incomingChunks[transferId].received === total) {
+      // Reassemble
+      try {
+        const allB64 = incomingChunks[transferId].chunks.join('');
+        const bytes = Uint8Array.from(atob(allB64), c => c.charCodeAt(0));
+        const json = new TextDecoder().decode(bytes);
+        const payload = JSON.parse(json);
+        delete incomingChunks[transferId];
+        processIncomingPayload(contactId, payload);
+      } catch(e) {
+        console.error('Chunk reassembly failed:', e);
+        delete incomingChunks[transferId];
+      }
+    }
+    return;
+  }
+
+  processIncomingPayload(contactId, data);
+}
+
+function processIncomingPayload(contactId, data) {
+  if (!data || !data.type) return;
+
+  // Dedup by timestamp + content fingerprint
+  const msgs = allMsgs[contactId] || [];
+  const fp = data.ciphertext?.substring(0,16) || data.data?.substring(0,16) || '';
+  const exists = msgs.find(m => m.ts === data.ts && (m.ct?.substring(0,16) === fp || m._dfp === fp));
+  if (exists) return;
+
+  const newMsg = { f: 0, ts: data.ts, enc: true, read: active?.id === contactId, _dfp: fp };
+
+  if (data.type === 'msg') {
+    newMsg.t = data.plaintext;
+    newMsg.ct = data.ciphertext;
+  } else if (data.type === 'image' || data.type === 'file') {
+    newMsg.type = data.type;
+    newMsg.data = data.data;
+    newMsg.fname = data.fname;
+    newMsg.fsize = data.fsize;
+  } else return;
+
+  (allMsgs[contactId] = allMsgs[contactId] || []).push(newMsg);
+  saveMsgs();
+
+  if (active?.id === contactId) renderMsgs();
+  else { renderContacts(); updateNavBadge(); }
+}
+
+// ── MESSAGE DELIVERY STATUS ──
+// status: 'sending' | 'sent' | 'queued' | 'delivered'
+function setMsgStatus(contactId, ts, status) {
+  const msgs = allMsgs[contactId] || [];
+  const m = msgs.find(x => x.ts === ts && x.f === 1);
+  if (m) { m.status = status; saveMsgs(); if (active?.id === contactId) updateMsgStatusIcon(ts, status); }
+}
+
+function updateMsgStatusIcon(ts, status) {
+  const el = document.querySelector(`[data-msg-ts="${ts}"] .msg-status`);
+  if (!el) return;
+  el.innerHTML = statusIcon(status);
+}
+
+function statusIcon(status) {
+  if (status === 'queued')    return `<span class="icon" style="font-size:11px;opacity:.5;font-variation-settings:'FILL' 0">schedule</span>`;
+  if (status === 'sent')      return `<span class="icon" style="font-size:11px;opacity:.6">check</span>`;
+  if (status === 'delivered') return `<span class="icon" style="font-size:11px;color:var(--accent2)">done_all</span>`;
+  return '';
+}
+
+function markDeliveredMsgs(contactId) {
+  // When a contact comes online, mark their queued/sent messages as delivered
+  const msgs = allMsgs[contactId] || [];
+  let changed = false;
+  msgs.forEach(m => {
+    if (m.f === 1 && (m.status === 'queued' || m.status === 'sent')) {
+      m.status = 'delivered'; changed = true;
+    }
+  });
+  if (changed) { saveMsgs(); if (active?.id === contactId) renderMsgs(); }
+}
+
+function markQueuedMsgs(contactId) {
+  if (!contactId) return;
+  const msgs = allMsgs[contactId] || [];
+  let changed = false;
+  msgs.forEach(m => {
+    if (m.f === 1 && !m.status) { m.status = 'queued'; changed = true; }
+  });
+  if (changed) { saveMsgs(); if (active?.id === contactId) renderMsgs(); }
+}
+
+// ── MESSAGE QUEUE ──
 let msgQueue = {}; // { contactId: [payload, ...] }
 
 function queueMessage(contactId, payload) {
@@ -894,66 +990,27 @@ function flushQueue(contactId) {
   if (!conn?.open) return;
   while (q.length > 0) {
     const p = q.shift();
-    try { conn.send(p); } catch(e) { q.unshift(p); break; }
+    try { sendChunked(conn, p); } catch(e) { q.unshift(p); break; }
   }
   if (!msgQueue[contactId]?.length) delete msgQueue[contactId];
 }
 
 async function sendPayload(contactId, payload) {
-  // Ensure we're trying to connect
   const contact = contacts.find(c => c.id === contactId);
-  if (!contact) return false;
-  
+  if (!contact) return 'error';
+
   const conn = peerConnections[contactId];
   if (conn?.open) {
     try {
-      conn.send(payload);
-      return true;
-    } catch(e) {
-      console.error('Send error:', e);
-    }
+      sendChunked(conn, payload);
+      return 'sent';
+    } catch(e) { console.error('Send error:', e); }
   }
-  
-  // Queue it and try to connect
-  queueMessage(contactId, payload);
-  await connectToContact(contact);
-  return false; // Will be delivered when connection opens
-}
 
-function handleIncomingData(contactId, data) {
-  if (!data || !data.type) return;
-  
-  // Dedup
-  const existing = (allMsgs[contactId] || []).find(m => m.ts === data.ts && (m.ct === data.ciphertext || m.data === data.data));
-  if (existing) return;
-  
-  const newMsg = {
-    f: 0, ts: data.ts, enc: true,
-    read: active?.id === contactId
-  };
-  
-  if (data.type === 'msg') {
-    // We receive plaintext directly (the sender encrypted for transmission, receiver decrypts)
-    // For local storage we store the plaintext they sent us
-    newMsg.t = data.plaintext;
-    newMsg.ct = data.ciphertext;
-  } else if (data.type === 'image' || data.type === 'file') {
-    newMsg.type = data.type;
-    newMsg.data = data.data;
-    newMsg.fname = data.fname;
-    newMsg.fsize = data.fsize;
-  } else return;
-  
-  (allMsgs[contactId] = allMsgs[contactId] || []).push(newMsg);
-  saveMsgs();
-  
-  if (active?.id === contactId) {
-    renderMsgs();
-  } else {
-    renderContacts();
-    // Update nav badge
-    updateNavBadge();
-  }
+  // Offline — queue it
+  queueMessage(contactId, payload);
+  connectToContact(contact); // fire-and-forget reconnect attempt
+  return 'queued';
 }
 
 function updateContactP2PStatus(contactId, status) {
